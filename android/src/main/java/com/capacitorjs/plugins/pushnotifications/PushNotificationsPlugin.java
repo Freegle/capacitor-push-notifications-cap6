@@ -1,3 +1,5 @@
+/* FREEGLE 6.0.2 */
+
 package com.capacitorjs.plugins.pushnotifications;
 
 import android.Manifest;
@@ -19,9 +21,21 @@ import com.google.firebase.messaging.CommonNotificationBuilder;
 import com.google.firebase.messaging.FirebaseMessaging;
 import com.google.firebase.messaging.NotificationParams;
 import com.google.firebase.messaging.RemoteMessage;
+import java.util.ArrayList; // Freegle
 import java.util.Arrays;
+import java.util.List; // Freegle
 import org.json.JSONException;
 import org.json.JSONObject;
+
+import android.app.PendingIntent;  // Freegle..
+import android.content.res.Resources;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.Color;
+import android.graphics.drawable.Drawable;
+import android.util.Log;
+import androidx.core.content.res.ResourcesCompat;
+import java.util.Map; // ..Freegle
 
 @CapacitorPlugin(
     name = "PushNotifications",
@@ -46,7 +60,7 @@ public class PushNotificationsPlugin extends Plugin {
 
         staticBridge = this.bridge;
         if (lastMessage != null) {
-            fireNotification(lastMessage);
+            fireNotification(lastMessage, false); // Freegle
             lastMessage = null;
         }
 
@@ -227,16 +241,18 @@ public class PushNotificationsPlugin extends Plugin {
         }
     }
 
-    public static void sendRemoteMessage(RemoteMessage remoteMessage) {
+    public static boolean sendRemoteMessage(RemoteMessage remoteMessage) { // Freegle
         PushNotificationsPlugin pushPlugin = PushNotificationsPlugin.getPushNotificationsInstance();
         if (pushPlugin != null) {
-            pushPlugin.fireNotification(remoteMessage);
+            pushPlugin.fireNotification(remoteMessage, true); // Freegle
+            return true;  // Foreground or Background // Freegle
         } else {
             lastMessage = remoteMessage;
+            return false; // Not running // Freegle
         }
     }
 
-    public void fireNotification(RemoteMessage remoteMessage) {
+    public void fireNotification(RemoteMessage remoteMessage, Boolean foreground) { // Freegle
         JSObject remoteMessageData = new JSObject();
 
         JSObject data = new JSObject();
@@ -245,7 +261,63 @@ public class PushNotificationsPlugin extends Plugin {
             Object value = remoteMessage.getData().get(key);
             data.put(key, value);
         }
+        data.put("foreground", foreground); // Freegle
         remoteMessageData.put("data", data);
+
+        // Freegle..
+        // Handle data notification
+        Map<String, String> msgdata = remoteMessage.getData();
+        if (msgdata != null) {
+          try{
+            String title = msgdata.get("title").toString();
+            String message = msgdata.get("message").toString();
+            int count = Integer.parseInt(msgdata.get("count").toString());
+            int res = Integer.parseInt(msgdata.get("notId").toString());
+            if( count==0){
+              notificationManager.cancelAll();
+            } else {
+              Bundle bundle = null;
+              Resources r = null;
+              String className = getContext().getPackageName();
+              int appIconResId = 0;
+              try {
+                  ApplicationInfo applicationInfo = getContext()
+                      .getPackageManager()
+                      .getApplicationInfo(className, PackageManager.GET_META_DATA);
+                  bundle = applicationInfo.metaData;
+                  r = getContext().getPackageManager().getResourcesForApplication(className);
+                  appIconResId = applicationInfo.icon;
+              } catch (PackageManager.NameNotFoundException e) {
+              }
+              int pushIcon = android.R.drawable.ic_dialog_info;
+              if (bundle != null && bundle.getInt("com.google.firebase.messaging.default_notification_icon") != 0) {
+                  pushIcon = bundle.getInt("com.google.firebase.messaging.default_notification_icon");
+              }
+
+              Intent intent = new Intent(getContext(), Class.forName(className+".MainActivity"));
+              intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP);
+              PendingIntent pendingIntent = PendingIntent.getActivity(getContext(), res, intent, PendingIntent.FLAG_IMMUTABLE);
+
+              Notification.Builder builder = new Notification.Builder(
+                  getContext(),
+                  NotificationChannelManager.FOREGROUND_NOTIFICATION_CHANNEL_ID
+              )
+                  .setSmallIcon(pushIcon)
+                  .setContentTitle(title)
+                  .setContentText(message)
+                  .setPriority(Notification.PRIORITY_DEFAULT)
+                  .setColor(Color.GREEN)
+                  .setContentIntent(pendingIntent);
+              setLargeIcon(builder,r,appIconResId);
+
+              notificationManager.notify(0, builder.build());
+            }
+          }
+          catch(Exception e) {
+            Log.e("PushNotifications", "fireNotification exception "+e.getMessage());
+          }
+        }
+        // ..Freegle
 
         RemoteMessage.Notification notification = remoteMessage.getNotification();
         if (notification != null) {
@@ -333,4 +405,19 @@ public class PushNotificationsPlugin extends Plugin {
             return null;
         }
     }
+
+    // Freegle..
+    public static void setLargeIcon(Notification.Builder builder, Resources r, int appIconResId) {
+        if (r != null && appIconResId != 0){
+          Drawable d = ResourcesCompat.getDrawable(r, appIconResId, null);
+          if( d != null) {
+            final Bitmap bmp = Bitmap.createBitmap(d.getIntrinsicWidth(), d.getIntrinsicHeight(), Bitmap.Config.ARGB_8888);
+            final Canvas canvas = new Canvas(bmp);
+            d.setBounds(0, 0, canvas.getWidth(), canvas.getHeight());
+            d.draw(canvas);
+            builder.setLargeIcon(bmp);
+          }
+        }
+    }
+    // ..Freegle
 }

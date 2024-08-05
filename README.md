@@ -11,7 +11,7 @@ Repo created as follows:
 * git init
 * npm i @capacitor/push-notifications
 * cd node_modules/\@capacitor/
-* cp -rRp push-notifications /d/FreeglePenrithEden/capacitor-push-notifications-cap6
+* cp -rRp push-notifications ..../capacitor-push-notifications-cap6
 
 @freegle/capacitor-push-notifications-cap6 has changes for Android as follows:
 * Data-only notifications are handled, generating notifications when in the background and when not running
