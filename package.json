@@ -13,7 +13,7 @@
     "ios/Sources",
     "ios/Tests",
     "Package.swift",
-    "FreegleCapacitorPushNotifications.podspec"
+    "FreegleCapacitorPushNotificationsCap6.podspec"
   ],
   "author": "Freegle Geeks <geeks@ilovefreegle.org>",
   "license": "MIT",
